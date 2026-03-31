@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: microform
+  datasource:
+    url: jdbc:postgresql://localhost:5432/microform
+    username: microform
+    password: microform
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  threads:
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  config: classpath:logback-spring.xml
+
+microform:
+  rate-limit:
+    submissions-per-minute: 30

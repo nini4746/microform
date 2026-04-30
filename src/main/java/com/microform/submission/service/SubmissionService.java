@@ -10,10 +10,14 @@ import com.microform.submission.persistence.SubmissionRepository;
 import com.microform.validation.NormalizationService;
 import com.microform.validation.SchemaValidatorService;
 import com.microform.validation.ValidationResult;
+import com.microform.webhook.domain.WebhookEventType;
+import com.microform.webhook.service.WebhookEventPublisher;
 import com.microform.workflow.WorkflowEngine;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -29,19 +33,23 @@ public class SubmissionService {
     private final NormalizationService normalizationService;
     private final AuditLogRepository auditLogRepository;
     private final WorkflowEngine workflowEngine;
+    private final WebhookEventPublisher webhookPublisher;
 
+    @Autowired
     public SubmissionService(FormVersionRepository formVersionRepository,
                              SubmissionRepository submissionRepository,
                              SchemaValidatorService validatorService,
                              NormalizationService normalizationService,
                              AuditLogRepository auditLogRepository,
-                             WorkflowEngine workflowEngine) {
+                             WorkflowEngine workflowEngine,
+                             WebhookEventPublisher webhookPublisher) {
         this.formVersionRepository = formVersionRepository;
         this.submissionRepository = submissionRepository;
         this.validatorService = validatorService;
         this.normalizationService = normalizationService;
         this.auditLogRepository = auditLogRepository;
         this.workflowEngine = workflowEngine;
+        this.webhookPublisher = webhookPublisher;
     }
 
     public Submission createSubmission(String formId, int version,
@@ -67,6 +75,7 @@ public class SubmissionService {
         submissionRepository.save(submission);
 
         auditLogRepository.append(submission.getId(), AuditEventType.CREATED, data, submitterId);
+        emit(WebhookEventType.SUBMISSION_CREATED, submission, Map.of("data", data));
         return submission;
     }
 
@@ -89,7 +98,26 @@ public class SubmissionService {
 
         auditLogRepository.append(submissionId, AuditEventType.STATE_CHANGED,
                 Map.of("from", currentState, "to", targetStateName), actorId);
+
+        Map<String, Object> transitionPayload = Map.of("from", currentState, "to", targetStateName);
+        emit(WebhookEventType.SUBMISSION_TRANSITIONED, submission, transitionPayload);
+        if ("APPROVED".equals(targetStateName)) {
+            emit(WebhookEventType.SUBMISSION_APPROVED, submission, transitionPayload);
+        } else if ("REJECTED".equals(targetStateName)) {
+            emit(WebhookEventType.SUBMISSION_REJECTED, submission, transitionPayload);
+        }
         return submission;
+    }
+
+    private void emit(WebhookEventType type, Submission submission, Map<String, Object> extra) {
+        if (webhookPublisher == null) return;
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("submissionId", submission.getId().toString());
+        body.put("formId", submission.getFormId());
+        body.put("version", submission.getVersion());
+        body.put("state", submission.getState().name());
+        if (extra != null) body.putAll(extra);
+        webhookPublisher.publish(type, body);
     }
 
     @Transactional(readOnly = true)

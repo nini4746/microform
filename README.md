@@ -62,10 +62,17 @@ Coverage:
 - [x] M4 audit log + detail view
 - [x] M5 list filter / search / pagination
 - [x] M6 streaming CSV export
-- [ ] M7 webhook + retry (optional)
+- [x] M7 webhook + retry (HMAC-SHA256 signature, exponential backoff, dead-letter)
+
+## Webhooks (M7)
+- Subscribe via `POST /webhooks` (admin only) with `eventTypes`, `url`, optional `secret`.
+- Events: `SUBMISSION_CREATED`, `SUBMISSION_TRANSITIONED`, `SUBMISSION_APPROVED`, `SUBMISSION_REJECTED`.
+- Deliveries persisted in `webhook_deliveries`. Background `WebhookScheduler` polls due rows.
+- Failures (transport errors or non-2xx) retried with exponential backoff (`microform.webhook.retry-base-ms`, capped at `retry-max-ms`); after `max-attempts` attempts -> `DEAD_LETTER`.
+- Body signed via HMAC-SHA256 using the per-subscription secret, header `X-Microform-Signature: sha256=<hex>`.
+- `GET /webhooks/{id}/deliveries`, `GET /webhooks/stats` for inspection.
 
 ## Limits / known gaps
-- Webhook delivery (M7) not implemented — outbound integrations must poll.
 - Auth is in-memory; production deploy needs real IdP.
 - Cursor pagination not implemented; offset/limit only.
 

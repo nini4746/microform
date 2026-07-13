@@ -52,8 +52,9 @@ docker compose up -d        # postgres
 Coverage:
 - `SchemaValidatorServiceTest` — type / constraint matrix
 - `WorkflowEngineTest` — transition rules, illegal transitions
-- `TransitionSecurityTest` — `@WithMockUser` per role
-- `CsvStreamingTest` — 10,000 rows under `-Xmx128m`
+- `FormServiceTest`
+- `WebhookDispatcherTest`, `WebhookSignatureServiceTest`, `WebhookSubscriptionTest`
+- 미구현: role-gated transition security test, CSV streaming/OOM test — no automated coverage yet
 
 ## Milestones
 - [x] M1 scaffolding + form versioning
@@ -75,5 +76,6 @@ Coverage:
 ## Limits / known gaps
 - Auth is in-memory; production deploy needs real IdP.
 - Cursor pagination not implemented; offset/limit only.
+- CSV export is not schema-typed: `CsvExportService.buildHeaders()` computes per-field headers from the form schema but discards them — the actual output is hardcoded to `id, state, submitter_id, created_at, data_json`, with `data_json` dumped as a raw JSON string rather than expanded into per-field columns.
 
 See `microform.md` and `Formwork_Project_Spec.md` for full spec.

@@ -9,6 +9,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -38,6 +39,12 @@ public class CsvExportService {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Read-only transaction so the connection is NOT in autocommit mode; only then
+     * does PostgreSQL honour the forward-only cursor + fetchSize=500 and stream rows
+     * instead of buffering the whole result set (the OOM-safety guarantee).
+     */
+    @Transactional(readOnly = true)
     public void streamCsv(ExportFilter filter, OutputStream outputStream) throws IOException {
         var formVersion = formVersionRepository
                 .findByIdFormIdAndIdVersion(filter.formId(), filter.version())

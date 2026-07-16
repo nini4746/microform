@@ -73,8 +73,29 @@ dependencies {
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
     jvmArgs("-XX:+EnableDynamicAgentLoading")
+}
+
+// Default suite: everything except the heavy Docker streaming guard.
+tasks.named<Test>("test") {
+    useJUnitPlatform { excludeTags("streaming") }
+}
+
+// CSV streaming/OOM guard: real Postgres via Testcontainers, heap capped at
+// 128m so a buffering regression OOMs instead of silently passing. Needs Docker.
+tasks.register<Test>("csvStreamingTest") {
+    description = "Runs the CSV streaming/OOM guard under a 128m heap (needs Docker)."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("streaming") }
+    maxHeapSize = "128m"
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+    // Forward the external-Postgres coordinates (the local Docker Engine is too
+    // new for the bundled docker-java, so this test uses a manually-started DB).
+    listOf("mf.test.pg.url", "mf.test.pg.user", "mf.test.pg.pass").forEach { key ->
+        System.getProperty(key)?.let { systemProperty(key, it) }
+    }
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

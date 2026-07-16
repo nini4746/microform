@@ -55,9 +55,13 @@ Coverage:
 - `FormServiceTest`
 - `WebhookDispatcherTest`, `WebhookSignatureServiceTest`, `WebhookSubscriptionTest`
 - `CsvExportTest` — schema-typed CSV export (per-field columns, missing-field cells, unknown-form rejection) driven against H2
-- 미구현: role-gated transition security test; CSV streaming/OOM guard test (streaming path implemented, not yet asserted under `-Xmx128m`)
+- `CsvStreamingIT` (`streaming` tag, `csvStreamingTest` task) — streams a ~150 MB export (150k fat rows) under `-Xmx128m` against real Postgres without OOM, proving the server-side cursor. Excluded from the default `test`.
+- 미구현: role-gated transition security test
 
 > JDK note: Gradle 8.14.3 must run on JDK ≤ 24. On a newer JDK run `JAVA_HOME=<jdk21> ./gradlew test` (the compile toolchain is pinned to 21).
+>
+> The streaming guard needs Postgres. The local Docker Engine is too new for the bundled docker-java, so start one manually and point the task at it:
+> `./gradlew csvStreamingTest -Dmf.test.pg.url=jdbc:postgresql://localhost:5435/microform -Dmf.test.pg.user=microform -Dmf.test.pg.pass=microform`
 
 ## Milestones
 - [x] M1 scaffolding + form versioning

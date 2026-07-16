@@ -54,7 +54,10 @@ Coverage:
 - `WorkflowEngineTest` — transition rules, illegal transitions
 - `FormServiceTest`
 - `WebhookDispatcherTest`, `WebhookSignatureServiceTest`, `WebhookSubscriptionTest`
-- 미구현: role-gated transition security test, CSV streaming/OOM test — no automated coverage yet
+- `CsvExportTest` — schema-typed CSV export (per-field columns, missing-field cells, unknown-form rejection) driven against H2
+- 미구현: role-gated transition security test; CSV streaming/OOM guard test (streaming path implemented, not yet asserted under `-Xmx128m`)
+
+> JDK note: Gradle 8.14.3 must run on JDK ≤ 24. On a newer JDK run `JAVA_HOME=<jdk21> ./gradlew test` (the compile toolchain is pinned to 21).
 
 ## Milestones
 - [x] M1 scaffolding + form versioning
@@ -76,6 +79,6 @@ Coverage:
 ## Limits / known gaps
 - Auth is in-memory; production deploy needs real IdP.
 - Cursor pagination not implemented; offset/limit only.
-- CSV export is not schema-typed: `CsvExportService.buildHeaders()` computes per-field headers from the form schema but discards them — the actual output is hardcoded to `id, state, submitter_id, created_at, data_json`, with `data_json` dumped as a raw JSON string rather than expanded into per-field columns.
+- CSV export is now schema-typed: `CsvExportService` emits `id, state, submitter_id, created_at` plus one column per form-schema field, values expanded from `data_json` (missing field → empty cell; nested value → JSON). Verified by `CsvExportTest`.
 
 See `microform.md` and `Formwork_Project_Spec.md` for full spec.
